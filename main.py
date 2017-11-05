@@ -42,11 +42,20 @@ class MyLogging:
     t = datetime.now()
 
     def __init__(self, path):
-        self.f = JsonStore(str(path) + '/' + self.t.strftime('%d_%m_%y_%H_%M_%S'))
+        self.f = JsonStore(str(path) + '/' + self.t.strftime('%d_%m_%y_%H_%M_%S.json'))
         self.path = str(path)
 
     def write_data(self, data):
-        self.f.put(self.t.strftime('%d-%m-%y_%H:%M:%S'), lat=data['lat'], lng=data['lng'])
+        try:
+            if data:
+                self.f.put(self.t.strftime('%d-%m-%y_%H:%M:%S'), lat=data['lat'], lng=data['lng'])
+        except Exception as e:
+            t = open(str(App().user_data_dir) + '/' + 'lll.txt', 'w')
+            t.write(str(e))
+            t.close()
+
+    def get_len(self):
+        return len(self.f)
 
 
 class gpsex(App):
@@ -73,20 +82,15 @@ class gpsex(App):
 
     @mainthread
     def stop(self):
-        try:
-            gps.stop()
-            self.l.write_data(self.lastcoords)
-        except Exception as e:
-            t = open(str(App().user_data_dir) + '/' + 'lll.txt', 'w')
-            t.write(str(e))
-            t.close()
+        gps.stop()
+        self.l.write_data(self.lastcoords)
+
 
     @mainthread
     def on_location(self, **kwargs):
         self.gps_location = '\n'.join(['{}={}'.format(k, v) for k, v in kwargs.items()])
         self.lastcoords = {'lat': kwargs['lat'], 'lng': kwargs['lon']}
-        if len(self.postgeostore) <= 2 or (datetime.now() - self.updtime).seconds <= 30:
-            self.l.write_data(self.lastcoords)
+        self.l.write_data(self.lastcoords)
 
     @mainthread
     def on_status(self, stype, status):
