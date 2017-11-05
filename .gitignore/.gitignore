@@ -1,6 +1,5 @@
 __pycache__
 .idea/*
-.buildozer
 db.sqlite3
 *.pyc
 *.ini
