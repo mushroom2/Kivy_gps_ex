@@ -8,6 +8,8 @@ import json
 from datetime import datetime
 import requests
 import os
+from kivy.storage.jsonstore import JsonStore
+
 
 kv = '''
 BoxLayout:
@@ -40,21 +42,11 @@ class MyLogging:
     t = datetime.now()
 
     def __init__(self, path):
-        self.f = open(str(path) + '/' + self.t.strftime('%d_%m_%y_%H_%M_%S')+'.txt', 'w+')
-        self.boof = ''
+        self.f = JsonStore(str(path) + '/' + self.t.strftime('%d_%m_%y_%H_%M_%S'))
         self.path = str(path)
 
     def write_data(self, data):
-        if self.f.closed:
-            self.f = open(self.f.name, 'w+')
-        if self.boof:
-            data = json.dumps(json.loads(self.boof) + json.loads(data))
-        self.f.write(data)
-        self.boof = data
-        self.close()
-
-    def close(self):
-        self.f.close()
+        self.f.put(self.t.strftime('%d-%m-%y_%H:%M:%S'), lat=data['lat'], lng=data['lng'])
 
 
 class gpsex(App):
@@ -63,7 +55,7 @@ class gpsex(App):
     gps_status = StringProperty('Click Start to get GPS location updates')
     data_dir = App().user_data_dir
     l = MyLogging(data_dir)
-    postgeostore = []
+    lastcoords = {}
 
     def build(self):
         try:
@@ -83,7 +75,7 @@ class gpsex(App):
     def stop(self):
         try:
             gps.stop()
-            self.l.write_data(json.dumps(self.postgeostore))
+            self.l.write_data(self.lastcoords)
         except Exception as e:
             t = open(str(App().user_data_dir) + '/' + 'lll.txt', 'w')
             t.write(str(e))
@@ -92,8 +84,9 @@ class gpsex(App):
     @mainthread
     def on_location(self, **kwargs):
         self.gps_location = '\n'.join(['{}={}'.format(k, v) for k, v in kwargs.items()])
+        self.lastcoords = {'lat': kwargs['lat'], 'lng': kwargs['lon']}
         if len(self.postgeostore) <= 2 or (datetime.now() - self.updtime).seconds <= 30:
-            self.postgeostore.append({'lat': kwargs['lat'], 'lng': kwargs['lon']})
+            self.l.write_data(self.lastcoords)
 
     @mainthread
     def on_status(self, stype, status):
@@ -101,8 +94,7 @@ class gpsex(App):
 
     def on_pause(self):
         gps.stop()
-        self.l.write_data(json.dumps(self.postgeostore))
-        self.postgeostore = []
+        self.l.write_data(self.lastcoords)
         return True
 
     def on_resume(self):
@@ -112,12 +104,11 @@ class gpsex(App):
     def post_coords(self):
         try:
             mr = []
-            targetlogs = list(filter(lambda x: '.txt' in x and '_' in x, os.listdir(App().user_data_dir)))
+            targetlogs = list(filter(lambda x: '.json' in x and '_' in x, os.listdir(App().user_data_dir)))
             targetlogs.sort(key=lambda x: datetime.strptime(x.split('.')[0], '%d_%m_%y_%H_%M_%S'))
             for log in targetlogs:
-                targetlog = open(App().user_data_dir + '/' + log, 'r')
-                data = json.loads(targetlog.read() or '[]')
-                targetlog.close()
+                targetlog = JsonStore(App().user_data_dir + '/' + log)
+                data = [targetlog[i] for i in targetlog]
                 mr += data
             if mr:
                 d = {
