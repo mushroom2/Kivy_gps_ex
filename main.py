@@ -1,7 +1,9 @@
 from kivy.lang import Builder
+from kivy.uix.image import Image
+from kivy.uix.widget import Widget
 from plyer import gps, notification
 from kivy.app import App
-from kivy.properties import StringProperty
+from kivy.properties import StringProperty, NumericProperty
 from kivy.clock import Clock, mainthread
 import random
 import json
@@ -9,15 +11,41 @@ from datetime import datetime
 import requests
 import os
 from kivy.storage.jsonstore import JsonStore
+from kivy.graphics import Color, Ellipse
+
 
 
 kv = '''
 BoxLayout:
+    canvas:
+        Color:
+            rgb: 1, .75, .1
+        Rectangle:
+            size: self.size
     orientation: 'vertical'
+    Image:
+        canvas.before:
+            PushMatrix
+            Rotate:
+                angle: app.tc
+                axis: 0, 0, 1
+                origin: self.center
+        canvas.after:
+            PopMatrix
+        source: 'Data/arrow.png'
+        size_hint: 1, .5
+        pos_hint: {'center_x':.5, 'center_y': .5}
     Label:
         text: app.gps_location
     Label:
         text: app.gps_status
+    BoxLayout:
+        size_hint_y: None
+        height: '48dp'
+        padding: '4dp'
+        Button:
+            text: 'ttt'
+            on_release: app.ttt()
     BoxLayout:
         size_hint_y: None
         height: '48dp'
@@ -57,6 +85,12 @@ class MyLogging:
     def get_len(self):
         return len(self.f)
 
+class SomeWidget(Widget):
+    def build(self):
+        return Image(source='Data/arrow.png')
+
+
+
 
 class gpsex(App):
     updtime = datetime.now()
@@ -65,6 +99,8 @@ class gpsex(App):
     data_dir = App().user_data_dir
     l = MyLogging(data_dir)
     lastcoords = {}
+    tc = NumericProperty(0)
+    testvalue = StringProperty('1')
 
     def build(self):
         try:
@@ -104,6 +140,14 @@ class gpsex(App):
     def on_resume(self):
         gps.start(1000, 0)
         pass
+
+    def ttt(self):
+       #with self.canvas:
+       #    Color(1, 1, 0)
+       #    Ellipse(pos=(500, 500), size=(10, 10))
+        self.tc += 1
+        self.gps_location = str(self.tc)
+
 
     def post_coords(self):
         try:
